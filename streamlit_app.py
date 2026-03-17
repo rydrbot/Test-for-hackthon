@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 
-API = "http://localhost:5000"
+API = "https://test-for-hackthon.onrender.com"
 
 st.title("✈️ Travel Management System")
 
