@@ -13,6 +13,45 @@ def get_db():
 
 
 # =========================
+# Initialize Database
+# =========================
+def init_db():
+    conn = sqlite3.connect("database.db")
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS agencies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS agents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            agency_id INTEGER
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            season TEXT,
+            price INTEGER
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+# Run DB init at startup (IMPORTANT)
+init_db()
+
+
+# =========================
 # Health Check
 # =========================
 @app.route("/")
@@ -37,20 +76,30 @@ def upload():
         cur = conn.cursor()
 
         for _, row in df.iterrows():
-            agency_name = str(row.get("agency", ""))
-            agent_name = str(row.get("agent", ""))
+            agency_name = str(row.get("agency", "")).strip()
+            agent_name = str(row.get("agent", "")).strip()
 
-            if agency_name and agent_name:
+            if not agency_name or not agent_name:
+                continue
+
+            # Check if agency exists
+            cur.execute("SELECT id FROM agencies WHERE name=?", (agency_name,))
+            result = cur.fetchone()
+
+            if result:
+                agency_id = result[0]
+            else:
                 cur.execute(
                     "INSERT INTO agencies(name) VALUES(?)",
                     (agency_name,)
                 )
                 agency_id = cur.lastrowid
 
-                cur.execute(
-                    "INSERT INTO agents(name, agency_id) VALUES(?, ?)",
-                    (agent_name, agency_id)
-                )
+            # Insert agent
+            cur.execute(
+                "INSERT INTO agents(name, agency_id) VALUES(?, ?)",
+                (agent_name, agency_id)
+            )
 
         conn.commit()
         conn.close()
@@ -140,7 +189,7 @@ def commission():
 
 
 # =========================
-# RUN APP (Render FIX)
+# Run App (Render Compatible)
 # =========================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
